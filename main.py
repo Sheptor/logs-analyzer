@@ -20,7 +20,7 @@ if __name__ == '__main__':
         counter = start_analyze(files=FILES)
         get_output(counter=counter, report_file_name=report_file_name)
 
-    except ValueError as exc:
+    except FileNotFoundError as exc:
         print(traceback.format_exc())
         sys.exit(1)
 

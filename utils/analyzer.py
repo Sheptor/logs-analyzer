@@ -16,12 +16,20 @@ def get_files_list(files: tp.Union[str, tp.Iterable[str]]) -> tp.Tuple[str, ...]
         files_list = []
         for i_file in files:
             if os.path.isdir(i_file):
-                files_list.extend([os.path.abspath(os.path.join(i_file, j_file)) for j_file in os.listdir(i_file)])
-            else:
+                files_list.extend([
+                    os.path.abspath(os.path.join(i_file, j_file))
+                    for j_file in os.listdir(i_file)
+                    if j_file.endswith((".log", ".txt", ".logs"))
+                ])
+            elif i_file.endswith((".log", ".txt", ".logs")):
                 files_list.append(os.path.abspath(i_file))
+            else:
+                raise FileNotFoundError("Only .log, .txt, .logs supported")
         files_list = tuple(set(files_list))
+        if len(files_list) == 0:
+            raise FileNotFoundError("Directory is empty")
     except TypeError:
-        raise ValueError("files_list must be filename/directory or iterable of filenames/directories")
+        raise FileNotFoundError("files_list must be filename/directory or iterable of filenames/directories")
 
     return files_list
 
@@ -54,7 +62,7 @@ def analyze_log_file(filename: str) -> tp.Dict[str, tp.Dict[str, int]]:
             if "django.request:" in i_row:
                 log_elements = i_row.split()
                 log_level = log_elements[2]  # If template is DATE TIME LOG_LEVEL
-                if log_level not in {"ERROR", "CRITICAL"}:
+                if log_level not in {"WARNING", "ERROR", "CRITICAL"}:
                     handler = log_elements[5]  # If template is DATE TIME LOG_LEVEL LOGGER: METHOD: HANDLER
                 else:
                     handler = i_row.split(": ")[2].split()[0]  # If template is DATE TIME LOG_LEVEL LOGGER: METHOD: ERROR_MESSAGE: HANDLER
@@ -78,6 +86,19 @@ def add_log_file_results(base_counter: tp.Dict, other_counter: tp.Dict):
     return base_counter
 
 
+def get_total_counter(counter: tp.Dict[str, tp.Dict[str, int]]) -> tp.Dict[str, int]:
+    handlers_list = sorted(counter.keys())
+    return {
+        i_level: sum([
+            counter[i_handler][i_level] for i_handler in handlers_list
+        ])
+        for i_level in LOG_LEVELS
+    }
+
+
+def get_total_requests(total_counters: tp.Dict[str, int]) -> int:
+    return sum(total_counters.values())
+
 def handler_counter_to_text(handler_counter: tp.Dict, min_field_len: int) -> str:
     counter_text = ""
     for i_level in handler_counter:
@@ -90,15 +111,10 @@ def get_output(counter: tp.Dict, report_file_name: str) -> None:
 
     max_handler_name_len = max(map(len, counter.keys())) + 4
     handlers_list = sorted(counter.keys())
-    total_counters = {
-        i_level: sum([
-            counter[i_handler][i_level] for i_handler in handlers_list
-        ])
-        for i_level in LOG_LEVELS
-    }
+    total_counters = get_total_counter(counter=counter)
     min_field_len = max(8, len(str(max(total_counters.values())))) + 4
 
-    output_text += f"Total requests: {sum(total_counters.values())}\n\n"
+    output_text += f"Total requests: {get_total_requests(total_counters)}\n\n"
 
     output_text += (
         f"{"HANDLER": <{max_handler_name_len}}"
