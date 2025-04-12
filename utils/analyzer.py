@@ -7,6 +7,13 @@ LOG_LEVELS: tp.Tuple = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
 
 
 def get_files_list(files: tp.Union[str, tp.Iterable[str]]) -> tp.Tuple[str, ...]:
+    """
+    The function retrieves log file names by directory or path. If one of the specified files or directories
+    does not exist or the specified file is not a log file, the FileNotFoundError occurs.
+    If the directory contains log files and non-log files, FileNotFoundError will not be started.
+    :param files: list of file names or directories with log files
+    :return: list of log files
+    """
     if isinstance(files, str):
         files = (files,)
     try:
@@ -29,12 +36,30 @@ def get_files_list(files: tp.Union[str, tp.Iterable[str]]) -> tp.Tuple[str, ...]
         if len(files_list) == 0:
             raise FileNotFoundError("Directory is empty")
     except TypeError:
-        raise FileNotFoundError("files_list must be filename/directory or iterable of filenames/directories")
+        raise FileNotFoundError("files_list must be file_name/directory or iterable of file_names/directories")
 
     return files_list
 
 
 def start_analyze(files: tp.Union[str, tp.Iterable[str]]) -> tp.Dict[str, tp.Dict[str, int]]:
+    """
+    The function counts the number of requests to handles, these are django.requests records in all files:
+    for each handle, 
+    for each logging level, 
+    it groups requests by handles.
+    :param files: list of file names or directories with log files to analyze
+    :return: counter: {
+        "handler_name_1": {
+            "DEBUG": number of debug logs in all files,
+            "INFO": number of info logs in all files,
+            "WARNING": number of warning logs in all files,
+            "ERROR": number of errors logs in all files,
+            "CRITICAL": number of critical errors logs in all files,
+        },
+        "handler_name_2": {...},
+        ...
+    }
+    """
     files_list = get_files_list(files)
 
     counter = None
@@ -51,13 +76,31 @@ def start_analyze(files: tp.Union[str, tp.Iterable[str]]) -> tp.Dict[str, tp.Dic
     return counter
 
 
-def analyze_log_file(filename: str) -> tp.Dict[str, tp.Dict[str, int]]:
+def analyze_log_file(file_name: str) -> tp.Dict[str, tp.Dict[str, int]]:
+    """
+    The function counts the number of requests to handles, these are django.requests records in one file:
+    for each handle, 
+    for each logging level, 
+    it groups requests by handles.
+    :param file_name: log file to analyze
+    :return: counter: {
+        "handler_name_1": {
+            "DEBUG": number of debug logs in file,
+            "INFO": number of info logs in file,
+            "WARNING": number of warning logs in file,
+            "ERROR": number of errors logs in file,
+            "CRITICAL": number of critical errors logs in file,
+        },
+        "handler_name_2": {...},
+        ...
+    }
+    """
     counter: tp.Dict[str, tp.Dict[str, int]] = dict()
     handler_counter: tp.Dict[str, int] = {
         i_level: 0 for i_level in LOG_LEVELS
     }
 
-    with open(filename, "r") as log_file:
+    with open(file_name, "r") as log_file:
         for i, i_row in enumerate(log_file):
             if "django.request:" in i_row:
                 log_elements = i_row.split()
@@ -74,6 +117,12 @@ def analyze_log_file(filename: str) -> tp.Dict[str, tp.Dict[str, int]]:
 
 
 def add_log_file_results(base_counter: tp.Dict, other_counter: tp.Dict):
+    """
+    The function adds the results of the counter to the total counter.
+    :param base_counter: total counter
+    :param other_counter: counter of one file
+    :return: total counter
+    """
     for i_handler, i_counts in other_counter.items():
         if i_handler not in base_counter:
             base_counter[i_handler] = copy(i_counts)
@@ -87,6 +136,17 @@ def add_log_file_results(base_counter: tp.Dict, other_counter: tp.Dict):
 
 
 def get_total_counter(counter: tp.Dict[str, tp.Dict[str, int]]) -> tp.Dict[str, int]:
+    """
+    The function counts the total number of requests for each logging level.
+    :param counter: a counter for each handler for all files
+    :return: total_counter: {
+        "DEBUG": number of debug logs in all files,
+        "INFO": number of info logs in all files,
+        "WARNING": number of warning logs in all files,
+        "ERROR": number of errors logs in all files,
+        "CRITICAL": number of critical errors logs in all files,
+    }
+    """
     handlers_list = sorted(counter.keys())
     return {
         i_level: sum([
@@ -97,16 +157,34 @@ def get_total_counter(counter: tp.Dict[str, tp.Dict[str, int]]) -> tp.Dict[str, 
 
 
 def get_total_requests(total_counters: tp.Dict[str, int]) -> int:
+    """
+    The function retrieves total django.request count from all files.
+    :param total_counters:
+    :return: number of django.request
+    """
     return sum(total_counters.values())
 
 def handler_counter_to_text(handler_counter: tp.Dict, min_field_len: int) -> str:
+    """
+    The function converts the counter to a string for convenient output.
+    :param handler_counter: counter for convert
+    :param min_field_len: minimal length of field
+    :return: handler counter as text
+    """
     counter_text = ""
     for i_level in handler_counter:
         counter_text += f"{handler_counter[i_level]: <{min_field_len}}"
     return counter_text
 
 
-def get_output(counter: tp.Dict, report_file_name: str) -> None:
+def get_output(counter: tp.Dict, report_file_name: tp.Optional[str]) -> str:
+    """
+    The function outputs the result of log analysis.
+    if the report_file_name parameter is specified, it writes the result to the specified file.
+    :param counter:
+    :param report_file_name:
+    :return: report text
+    """
     output_text = ""
 
     max_handler_name_len = max(map(len, counter.keys())) + 4
@@ -142,3 +220,5 @@ def get_output(counter: tp.Dict, report_file_name: str) -> None:
         with open(os.path.join("results", f"{report_file_name}.txt"), "w", encoding="UTF-8") as output_file:
             output_file.write(output_text)
         print(f"saved to {os.path.join('results', f'{report_file_name}.txt')}")
+
+    return output_text

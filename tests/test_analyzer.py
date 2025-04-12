@@ -204,3 +204,34 @@ def test_get_total_requests(get_logs_dir):
         }
     result = utils.analyzer.get_total_requests(total_counters=total_counters)
     assert result == 5 + 10 + 20
+
+def test_handler_counter_to_text(get_logs_dir):
+    total_counters = {
+            "DEBUG": 5,
+            "INFO": 10,
+            "WARNING": 0,
+            "ERROR": 20,
+            "CRITICAL": 0
+        }
+    result = utils.analyzer.handler_counter_to_text(handler_counter=total_counters, min_field_len=12)
+    assert "5 " in result
+    assert " 10 " in result
+    assert " 0 " in result
+    assert " 20 " in result
+
+def test_get_output(get_logs_dir):
+    counter = {
+        "handler_1": {
+            "DEBUG": 5,
+            "INFO": 10,
+            "WARNING": 0,
+            "ERROR": 20,
+            "CRITICAL": 0
+        }
+    }
+    result = utils.analyzer.get_output(counter=counter, report_file_name=None)
+    assert f"Total requests: {5 + 10 + 20}" in result
+    assert " 5 " in result
+    assert " 10 " in result
+    assert " 0 " in result
+    assert " 20 " in result

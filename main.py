@@ -5,13 +5,14 @@ import traceback
 
 
 parser = argparse.ArgumentParser()
+parser.add_argument(dest="FILES", metavar="FILES", nargs="*", help="Log files list to analyze", default="logs/")
 parser.add_argument("--report", help="Report file name")
 namespace = parser.parse_args()
 report_file_name = namespace.report
+FILES = namespace.FILES
 
-# FILES = "logs/app1.log"
 # examples:
-FILES = "logs/"  # analyze all files in directory
+# FILES = "logs/"  # analyze all files in directory
 # FILES = ("logs/app1.log", "logs/app2.log")  # select files to analyze
 # FILES = "logs/app1.log"  # select one file to analyze
 
