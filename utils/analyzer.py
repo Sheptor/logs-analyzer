@@ -3,7 +3,7 @@ from multiprocessing import Pool, cpu_count
 import typing as tp
 from copy import copy
 
-LOG_LEVELS: tp.Tuple = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
+LOG_LEVELS: tp.Tuple[str, ...] = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
 
 
 def get_files_list(files: tp.Union[str, tp.Iterable[str]]) -> tp.Tuple[str, ...]:
@@ -101,7 +101,8 @@ def analyze_log_file(file_name: str) -> tp.Dict[str, tp.Dict[str, int]]:
     }
 
     with open(file_name, "r") as log_file:
-        for i, i_row in enumerate(log_file):
+        for i_row in log_file:
+            # Using string operations is almost 3 times faster compared to regex
             if "django.request:" in i_row:
                 log_elements = i_row.split()
                 log_level = log_elements[2]  # If template is DATE TIME LOG_LEVEL
@@ -163,6 +164,7 @@ def get_total_requests(total_counters: tp.Dict[str, int]) -> int:
     :return: number of django.request
     """
     return sum(total_counters.values())
+
 
 def handler_counter_to_text(handler_counter: tp.Dict, min_field_len: int) -> str:
     """
